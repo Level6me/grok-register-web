@@ -1,0 +1,23 @@
+# Logs & Temporary Files
+*.log
+run.log
+console.log
+mail_relay.log
+mail_store.json
+
+# Credentials & Sensitive Configuration
+config.json
+proxies.txt
+mail_credentials.txt
+accounts_*.txt
+cpa_auths/
+cpa_xai/
+
+# Environments & Caches
+venv/
+.venv/
+__pycache__/
+*.pyc
+.tmp/
+DrissionPage/
+logs/
