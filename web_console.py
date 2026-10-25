@@ -677,6 +677,10 @@ def save_proxies_file(proxy_lines):
             clean_lines.append(line)
     with open(PROXIES_FILE, "w", encoding="utf-8") as f:
         f.write("\n".join(clean_lines) + ("\n" if clean_lines else ""))
+    try:
+        os.chmod(PROXIES_FILE, 0o600)
+    except Exception:
+        pass
 
     cfg = load_config()
     if clean_lines:
@@ -687,6 +691,10 @@ def save_proxies_file(proxy_lines):
         cfg["proxy_list"] = []
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
         json.dump(cfg, f, indent=2, ensure_ascii=False)
+    try:
+        os.chmod(CONFIG_FILE, 0o600)
+    except Exception:
+        pass
 
 def get_accounts_parsed():
     account_files = glob.glob(os.path.join(REGISTER_DIR, "accounts_*.txt"))
@@ -811,6 +819,10 @@ class WebConsoleHandler(BaseHTTPRequestHandler):
             if not is_register_running():
                 log_fd = open(LOG_FILE, "ab")
                 try:
+                    os.chmod(LOG_FILE, 0o600)
+                except Exception:
+                    pass
+                try:
                     subprocess.Popen(
                         [
                             "bash", "-c",
@@ -842,15 +854,29 @@ class WebConsoleHandler(BaseHTTPRequestHandler):
                 lines = [l.strip() for l in proxy_text.splitlines() if l.strip()]
                 save_proxies_file(lines)
 
+                # 校验与 app_config 一致，避免无效值写入后导致注册程序无法加载配置
+                try:
+                    register_count = int(data.get("register_count", 100))
+                except (TypeError, ValueError):
+                    register_count = 100
+                register_count = max(1, min(2500, register_count))
+                email_provider = str(data.get("email_provider", "yyds") or "").strip()
+                if email_provider not in ("duckmail", "yyds", "cloudflare", "cloudmail"):
+                    email_provider = "yyds"
+
                 cfg_update = {
-                    "register_count": data.get("register_count", 100),
-                    "email_provider": data.get("email_provider", "yyds"),
-                    "yyds_api_key": data.get("yyds_api_key", "").strip()
+                    "register_count": register_count,
+                    "email_provider": email_provider,
+                    "yyds_api_key": str(data.get("yyds_api_key", "") or "").strip()
                 }
                 cfg = load_config()
                 cfg.update(cfg_update)
                 with open(CONFIG_FILE, "w", encoding="utf-8") as f:
                     json.dump(cfg, f, indent=2, ensure_ascii=False)
+                try:
+                    os.chmod(CONFIG_FILE, 0o600)
+                except Exception:
+                    pass
 
                 self.send_json(200, {"ok": True})
             except Exception as exc:

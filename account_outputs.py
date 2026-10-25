@@ -9,27 +9,26 @@ from datetime import datetime, timezone
 from filelock import FileLock
 
 
-def append_account_line(path, email, password, sso):
-    with open(path, "a", encoding="utf-8") as handle:
-        handle.write(f"{email}----{password}----{sso}\n")
+def _append_secret_line(path, text):
+    """Append a sensitive line, creating the file with owner-only permissions from the start."""
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+    with os.fdopen(fd, "a", encoding="utf-8") as handle:
+        handle.write(text)
         handle.flush()
         os.fsync(handle.fileno())
     try:
         os.chmod(path, 0o600)
     except Exception:
         pass
+
+
+def append_account_line(path, email, password, sso):
+    _append_secret_line(path, f"{email}----{password}----{sso}\n")
 
 
 def save_mail_credential(base_dir, email, credential):
     path = os.path.join(base_dir, "mail_credentials.txt")
-    with open(path, "a", encoding="utf-8") as handle:
-        handle.write(f"{email}\t{credential}\n")
-        handle.flush()
-        os.fsync(handle.fileno())
-    try:
-        os.chmod(path, 0o600)
-    except Exception:
-        pass
+    _append_secret_line(path, f"{email}\t{credential}\n")
     return True
 
 
@@ -38,14 +37,7 @@ def queue_unsaved_account(path, payload, error):
     record = dict(payload)
     record["save_error"] = str(error)
     record["queued_at"] = datetime.now(timezone.utc).isoformat()
-    with open(pending_path, "a", encoding="utf-8") as handle:
-        handle.write(json.dumps(record, ensure_ascii=False) + "\n")
-        handle.flush()
-        os.fsync(handle.fileno())
-    try:
-        os.chmod(pending_path, 0o600)
-    except Exception:
-        pass
+    _append_secret_line(pending_path, json.dumps(record, ensure_ascii=False) + "\n")
     return True
 
 
