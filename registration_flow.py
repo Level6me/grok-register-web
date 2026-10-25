@@ -85,7 +85,9 @@ def register_one_account(callbacks, ops, enable_nsfw=True, max_mail_retry=3):
         callbacks.log("[*] 2. 创建邮箱并提交")
         email, dev_token = ops.fill_email_and_submit()
         callbacks.log(f"[*] 邮箱: {email}")
-        callbacks.log(f"[Debug] 邮箱credential(jwt): {dev_token}")
+        callbacks.log(
+            f"[Debug] 邮箱credential(jwt): {str(dev_token)[:10]}... (len={len(dev_token)})"
+        )
         if not ops.save_mail_credential(email, dev_token):
             callbacks.log("[!] 邮箱凭据保存失败，注册继续，但已明确记录该异常")
         callbacks.log("[*] 3. 拉取验证码")

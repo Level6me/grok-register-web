@@ -1000,8 +1000,8 @@ return 'filled-no-submit';
 
             if isinstance(filled, str) and filled.startswith("wait-cloudflare"):
                 form_filled_once = True
+                token_len = filled.split(":", 1)[1] if ":" in filled else "0"
                 if log_callback:
-                    token_len = filled.split(":", 1)[1] if ":" in filled else "0"
                     log_callback(f"[*] 资料已填写，等待 Cloudflare 人机验证通过... 当前token长度={token_len}")
                 if token_len == "0":
                     pause_seconds = random.uniform(1, 3)

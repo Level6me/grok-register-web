@@ -17,11 +17,11 @@ import re
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
-CONFIG_FILE = "/home/ubuntu/grok-register/config.json"
-PROXIES_FILE = "/home/ubuntu/grok-register/proxies.txt"
-LOG_FILE = "/home/ubuntu/grok-register/run.log"
-CPA_DIR = "/home/ubuntu/.cli-proxy-api"
-REGISTER_DIR = "/home/ubuntu/grok-register"
+REGISTER_DIR = os.path.dirname(os.path.abspath(__file__))
+CONFIG_FILE = os.path.join(REGISTER_DIR, "config.json")
+PROXIES_FILE = os.path.join(REGISTER_DIR, "proxies.txt")
+LOG_FILE = os.path.join(REGISTER_DIR, "run.log")
+CPA_DIR = os.path.expanduser("~/.cli-proxy-api")
 PORT = 8318
 
 HTML_TEMPLATE = """<!DOCTYPE html>
@@ -281,7 +281,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     <label>批量代理池列表 (支持 <code>IP:PORT:USER:PASS</code> 或 <code>http://user:pass@ip:port</code> 每行一个)</label>
                     <button type="button" class="btn btn-outline" style="padding: 2px 8px; font-size: 11px; color: var(--accent-red); border-color: rgba(239, 68, 68, 0.4);" onclick="clearProxyList()">🗑️ 清空代理列表</button>
                 </div>
-                <textarea id="cfgProxyList" rows="6" placeholder="31.59.20.176:6754:wqvufgny:iw6o3e9x3n8t&#10;31.56.127.193:7684:wqvufgny:iw6o3e9x3n8t" oninput="markConfigDirty()"></textarea>
+                <textarea id="cfgProxyList" rows="6" placeholder="IP:PORT:USER:PASS&#10;http://user:pass@ip:port 每行一个" oninput="markConfigDirty()"></textarea>
             </div>
 
             <div class="form-grid">
@@ -392,6 +392,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         } catch (e) {
             fallbackCopy(str, label);
         }
+    }
+
+    function copyAccount(idx, field) {
+        const item = allAccountItems[idx];
+        if (!item) return;
+        const labels = { email: '邮箱', password: '密码', token: 'Token' };
+        copyText(item[field], labels[field] || '');
     }
 
     function fallbackCopy(str, label) {
@@ -523,9 +530,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             return `
                 <tr>
                     <td>${globalIdx}</td>
-                    <td class="cell-mono" style="color: var(--accent-blue);" onclick="copyText('${item.email}', '邮箱')" title="点击复制邮箱">${escEmail}</td>
-                    <td class="cell-mono" style="color: var(--accent-green);" onclick="copyText('${item.password}', '密码')" title="点击复制密码">${escPass}</td>
-                    <td class="cell-mono cell-token" style="color: var(--text-muted);" onclick="copyText('${item.token}', 'Token')" title="点击复制 Token">${escToken || '-'}</td>
+                    <td class="cell-mono" style="color: var(--accent-blue);" onclick="copyAccount(${globalIdx}, 'email')" title="点击复制邮箱">${escEmail}</td>
+                    <td class="cell-mono" style="color: var(--accent-green);" onclick="copyAccount(${globalIdx}, 'password')" title="点击复制密码">${escPass}</td>
+                    <td class="cell-mono cell-token" style="color: var(--text-muted);" onclick="copyAccount(${globalIdx}, 'token')" title="点击复制 Token">${escToken || '-'}</td>
                 </tr>
             `;
         }).join('');
@@ -802,16 +809,29 @@ class WebConsoleHandler(BaseHTTPRequestHandler):
 
         if path == "/api/start":
             if not is_register_running():
-                cmd = f"nohup bash -c 'cd {REGISTER_DIR} && printf \"start\\n\" | xvfb-run -a ./venv/bin/python grok_register_ttk.py cli' >> {LOG_FILE} 2>&1 &"
-                subprocess.Popen(cmd, shell=True)
+                log_fd = open(LOG_FILE, "ab")
+                try:
+                    subprocess.Popen(
+                        [
+                            "bash", "-c",
+                            'cd "$1" && printf "start\\n" | xvfb-run -a ./venv/bin/python grok_register_ttk.py cli',
+                            "grok-register", REGISTER_DIR,
+                        ],
+                        stdin=subprocess.DEVNULL,
+                        stdout=log_fd,
+                        stderr=log_fd,
+                        start_new_session=True,
+                    )
+                finally:
+                    log_fd.close()
                 self.send_json(200, {"ok": True, "msg": "注册进程已成功启动！"})
             else:
                 self.send_json(200, {"ok": False, "msg": "注册流程已在后台运行中，无需重复启动"})
             return
 
         if path == "/api/stop":
-            subprocess.run("pkill -9 -f grok_register_ttk 2>/dev/null || true", shell=True)
-            subprocess.run("pkill -9 Xvfb 2>/dev/null || true", shell=True)
+            subprocess.run(["pkill", "-9", "-f", "grok_register_ttk"])
+            subprocess.run(["pkill", "-9", "Xvfb"])
             self.send_json(200, {"ok": True, "msg": "注册进程已停止"})
             return
 

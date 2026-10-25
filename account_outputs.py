@@ -14,6 +14,10 @@ def append_account_line(path, email, password, sso):
         handle.write(f"{email}----{password}----{sso}\n")
         handle.flush()
         os.fsync(handle.fileno())
+    try:
+        os.chmod(path, 0o600)
+    except Exception:
+        pass
 
 
 def save_mail_credential(base_dir, email, credential):
@@ -22,6 +26,10 @@ def save_mail_credential(base_dir, email, credential):
         handle.write(f"{email}\t{credential}\n")
         handle.flush()
         os.fsync(handle.fileno())
+    try:
+        os.chmod(path, 0o600)
+    except Exception:
+        pass
     return True
 
 

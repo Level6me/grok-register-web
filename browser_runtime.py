@@ -39,7 +39,7 @@ def normalize_proxy_url(raw):
 def get_configured_proxy():
     global _proxy_index
     proxy_list = _config.get('proxy_list', [])
-    proxies_txt = '/home/ubuntu/grok-register/proxies.txt'
+    proxies_txt = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'proxies.txt')
     if not proxy_list and os.path.exists(proxies_txt):
         try:
             with open(proxies_txt, 'r', encoding='utf-8') as f:
